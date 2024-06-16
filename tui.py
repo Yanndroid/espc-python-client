@@ -1,5 +1,6 @@
 from typing import Callable
 from dataclasses import dataclass
+import getpass
 
 
 @dataclass
@@ -7,6 +8,10 @@ class Option:
     name: str
     func: Callable
     args: any = None
+
+
+def prompt_secret(prompt: str):
+    return getpass.getpass(f"{prompt} > ")
 
 
 def prompt_input(prompt: str):

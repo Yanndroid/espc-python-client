@@ -7,7 +7,7 @@ import tui
 import coap
 import network
 
-STORGAE_FILE = "clocks.json"
+STORAGE_FILE = "clocks.json"
 
 @dataclass
 class Clock:
@@ -17,14 +17,61 @@ class Clock:
 
 
 def load_clocks():
-    if not os.path.exists(STORGAE_FILE):
+    if not os.path.exists(STORAGE_FILE):
         return []
-    json_data = json.load(open(STORGAE_FILE, "r"))
+    json_data = json.load(open(STORAGE_FILE, "r"))
     return [Clock(**data) for data in json_data]
 
 
 def save_clocks(clocks):
-    json.dump([clock.__dict__ for clock in clocks], open(STORGAE_FILE, "w"))
+    json.dump([clock.__dict__ for clock in clocks], open(STORAGE_FILE, "w"))
+
+
+def setup_clock():
+    ip = "192.168.4.1"
+    info = coap.request_info(ip)
+    if info is None:
+        print("Clock not found.")
+        return
+    device = info["device"]
+    print(f'Setup: {device["name"]} ({device["mac"]}) {device["version"]}')
+    ssid = tui.prompt_input("WiFi SSID")
+    password = tui.prompt_secret("WiFi password")
+    username = tui.prompt_input("WiFi enterprise username (leave blank if not required)")
+
+    coap.request_setup(ip, ssid, password, username)
+    print("Setup complete.")
+
+
+def option_setup_clock(clock: Clock):
+    print("Connecting to clock...")
+    try:
+        network.connect_to_ap(clock.name, clock.mac, "yanndroid")
+    except Exception as e:
+        print(f"Error: {e}")
+        print(f'Please connect to the "{clock.name}" wifi manually using "yanndroid" as the password.')
+        input("Press <enter> when done.")
+
+    setup_clock()
+
+
+def option_main_setup_clock(*agrs):
+    print("Scanning for new clocks...")
+    try:
+        aps = network.find_clock_aps()
+        if len(aps) == 0:
+            raise Exception("No clocks found.")
+        
+        options = []
+        for ap in aps:
+            options.append(tui.Option(f"{ap['ssid']} ({ap['bssid']})", option_setup_clock, Clock(ap['ssid'], "", ap['bssid'])))
+        tui.show_menu("Select a clock to setup", options)
+    except Exception as e:
+        print(f"Error: {e}")
+        print(f'Please connect to the clock wifi manually using "yanndroid" as the password.')
+        input("Press <enter> when done.")
+        setup_clock()
+
 
 
 def option_main_add_clock(clocks):
@@ -34,7 +81,7 @@ def option_main_add_clock(clocks):
 
     ip_end_hex = None
     while ip_end_hex is None:
-        ip_end_hex = re.match(r'([0-9a-fA-F]{2})\.([0-9a-fA-F]{2})', tui.prompt_input("Numbers (xx.xx)"))
+        ip_end_hex = re.match(r'([0-9a-fA-F]{2})\.([0-9a-fA-F]{2})', tui.prompt_input("Numbers (rr.gg)"))
 
     ip = f'{ip_start.group(1)}.{ip_start.group(2)}.{int(ip_end_hex.group(1), 16)}.{int(ip_end_hex.group(2), 16)}'
 
@@ -110,12 +157,12 @@ def main():
 
     while True:
         main_options = [
-            # tui.Option("Setup new Clock", todo),
+            tui.Option("Setup new Clock", option_main_setup_clock),
             tui.Option("Add Clock", option_main_add_clock, clocks),
         ]
         for clock in clocks:
             main_options.append(
-                tui.Option(f"Clock: {clock.name}", option_main_clock, clock)
+                tui.Option(f"Clock: {clock.name} ({clock.ip}) ({clock.mac})", option_main_clock, clock)
             )
 
         if tui.show_menu("Main menu", main_options):

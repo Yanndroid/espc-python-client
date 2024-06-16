@@ -18,6 +18,7 @@ This repository contains a simple python client for the ESPC. It provides the ba
 
 ### Features (W.I.P)
 
+- Setup
 - Locate
 - Set Brightness
 - Reset

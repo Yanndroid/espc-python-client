@@ -46,3 +46,7 @@ def request_restart(ip):
 
 def request_update(ip, url, signature):
     asyncio.run(request(ip, PUT, {"update": {"url": url, "signature": signature}}))
+
+
+def request_setup(ip, ssid, password, username):
+    asyncio.run(request(ip, PUT, {"wifi": {"ssid": ssid, "password": password, "username": username}}))
